@@ -1,0 +1,13 @@
+MV CALHAS EDITOR — PWA
+
+1. Extraia este ZIP.
+2. No GitHub, abra o repositório Mvcalhas.
+3. Substitua index.html e envie também manifest.webmanifest, sw.js e a pasta icons com seus dois arquivos PNG.
+4. Aguarde a publicação do GitHub Pages.
+5. No Android, abra https://osmairsoares.github.io/Mvcalhas/ no Chrome.
+6. Menu ⋮ > Adicionar à tela inicial ou Instalar app.
+
+O editor funciona no navegador. O PDF escolhido permanece no dispositivo, sem envio para servidor.
+A abertura e a exportação de PDFs dependem das bibliotecas externas PDF.js e pdf-lib; portanto, conexão à internet pode ser necessária, mesmo após instalar o PWA.
+A seleção de texto em PDFs digitalizados como imagem não é suportada.
+Antes de usar em produção, teste edição, posicionamento e exportação com PDFs reais no seu celular.

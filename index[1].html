@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MV CALHAS EDITOR</title>
+<meta name="theme-color" content="#173b59"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="MV Calhas">
+<link rel="manifest" href="./manifest.webmanifest"><link rel="icon" type="image/png" href="./icons/icon-192.png"><link rel="apple-touch-icon" href="./icons/icon-192.png">
+<style>
+:root{--navy:#173b59;--blue:#245a80;--bg:#f3f6f9;--line:#dce3e9;--ink:#1c2b36}
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:var(--navy);color:white;padding:15px 20px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 8px #0002}
+.logo{width:42px;height:42px;border:2px solid #fff;border-radius:10px;display:grid;place-items:center;font-weight:bold;font-size:13px}
+header h1{font-size:19px;margin:0}header small{opacity:.8}
+main{max-width:1250px;margin:18px auto;padding:0 14px}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;background:white;padding:12px;border:1px solid var(--line);border-radius:12px;margin-bottom:14px}
+button,.filebtn{border:0;border-radius:8px;padding:10px 13px;background:var(--blue);color:white;font-weight:600;cursor:pointer;font-size:13px}
+button.secondary,.filebtn.secondary{background:#e9eff4;color:#233b4e}button:disabled{opacity:.4;cursor:not-allowed}
+input[type=file]{display:none}.workspace{display:grid;grid-template-columns:250px 1fr;gap:14px;align-items:start}
+.panel,.viewer{background:white;border:1px solid var(--line);border-radius:12px;padding:14px}
+.panel h3{margin:0 0 10px;font-size:15px}.panel p{font-size:13px;line-height:1.5;color:#536575}
+.panel label{display:block;font-size:12px;font-weight:bold;margin:12px 0 5px}
+.panel input[type=text],.panel input[type=number],.panel select{width:100%;padding:9px;border:1px solid var(--line);border-radius:7px}
+.stagehead{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+#pageInfo{font-size:13px;color:#536575}
+.canvaswrap{min-height:520px;display:flex;justify-content:center;align-items:flex-start;overflow:auto;background:#e9edf1;padding:18px;border-radius:9px}
+#pageStage{position:relative;display:none;background:white;box-shadow:0 2px 12px #0002;line-height:0}
+#pdfCanvas{display:block;max-width:100%;height:auto}
+#overlay{position:absolute;inset:0;overflow:hidden;pointer-events:none}.textLayer{position:absolute;inset:0;overflow:hidden;line-height:1;opacity:1;pointer-events:none}.pdfText{position:absolute;white-space:pre;transform-origin:0 0;color:transparent;cursor:text;pointer-events:auto;user-select:text}.pdfText:hover{background:#55aaff33;outline:1px solid #55aaff}.pdfText.chosen{background:#ffd54a66;outline:2px solid #e0a000}
+.item{position:absolute;cursor:move;line-height:1.15;white-space:pre-wrap;overflow:hidden;user-select:none;pointer-events:auto}
+.item.replace{white-space:nowrap;display:flex;align-items:center;padding:0 2px;line-height:1; font-family:Arial,Helvetica,sans-serif;font-weight:600}
+.item.selected{outline:1px dashed #1683d8}
+.item.text{padding:2px;color:#111}
+.item.replace{
+  background:#fff;
+  color:#111;
+  padding:0 2px;
+  margin:0;
+  border:0;
+  line-height:1;
+  white-space:pre;
+  overflow:hidden;
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  z-index:3;
+}
+.item.cover{background:white;border:1px dashed #c5c5c5}
+.item.image img{width:100%;height:100%;object-fit:contain;pointer-events:none}
+.empty{padding:70px 20px;text-align:center;color:#627382;line-height:1.5}
+.status{font-size:12px;color:#536575;margin-top:10px}
+.pages{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.thumb{border:1px solid var(--line);background:#f8fafb;color:#243746;padding:7px 10px}
+.thumb.active{border:2px solid var(--blue);background:#eaf2f8}
+.notice{background:#fff8e6;border:1px solid #f1dfae;color:#70551b;padding:10px 12px;border-radius:8px;font-size:12px;line-height:1.45;margin-bottom:12px}
+@media(max-width:760px){.workspace{grid-template-columns:1fr}.panel{order:2}.canvaswrap{min-height:350px;padding:8px}header h1{font-size:16px}}
+
+/* Interface móvel e áreas de toque */
+html{overflow-x:hidden}button,.filebtn{min-height:44px;touch-action:manipulation}
+.canvaswrap{justify-content:flex-start;overscroll-behavior:contain;touch-action:pan-x pan-y}
+#pageStage{flex:0 0 auto;transform-origin:top left}
+.pdfText{touch-action:manipulation}.item{touch-action:none}
+.mobile-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.mobile-controls label{font-size:13px;font-weight:bold}.mobile-controls input{width:100px}
+#mobileEdit{display:none}
+@media(max-width:760px){
+ header{padding:12px}main{margin:8px auto;padding:0 8px}
+ .toolbar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;padding:9px}
+ .toolbar button,.toolbar .filebtn{display:flex;align-items:center;justify-content:center;text-align:center;padding:9px 6px;font-size:12px}
+ .workspace{display:flex;flex-direction:column;gap:9px}.viewer{order:1;width:100%;padding:9px}.panel{order:2;width:100%;padding:12px}
+ .canvaswrap{min-height:300px;max-height:65vh;overflow:auto;padding:8px}
+ .stagehead{font-size:13px}#mobileEdit{display:block}
+ .panel input[type=text],.panel input[type=number],.panel select{min-height:44px;font-size:16px}
+ .panel label{font-size:13px}.notice{font-size:11px}
+}
+</style>
+</head>
+<body>
+<header><div class="logo">MV</div><div><h1>MV CALHAS EDITOR</h1><small>Editor e personalizador de documentos PDF</small></div></header>
+<main>
+<div class="notice"><b>Protótipo inicial:</b> permite selecionar textos que já existem no PDF: clique no texto identificado, altere o conteúdo no painel e aplique. O editor cobre o texto antigo e grava o novo por cima. Também permite inserir textos e imagens, excluir páginas e exportar.</div>
+<div class="toolbar">
+<label class="filebtn" for="pdfInput">📄 Abrir PDF</label><input id="pdfInput" type="file" accept="application/pdf">
+<button id="prev" class="secondary" disabled>← Página</button><button id="next" class="secondary" disabled>Página →</button>
+<button id="addText" disabled>＋ Adicionar texto</button>
+<button id="cover" class="secondary" disabled>▰ Cobrir texto</button>
+<label class="filebtn secondary" for="imageInput" id="imageLabel" style="opacity:.45;pointer-events:none">＋ Imagem</label><input id="imageInput" type="file" accept="image/png,image/jpeg">
+<button id="deletePage" class="secondary" disabled>Excluir página</button>
+<button id="export" disabled>⬇ Gerar PDF</button>
+</div>
+<div class="mobile-controls"><label for="zoomRange">Zoom</label><input id="zoomRange" type="range" min="50" max="180" step="10" value="100"><span id="zoomLabel">100%</span><button id="fitWidth" class="secondary" type="button">Ajustar largura</button><button id="mobileEdit" class="secondary" type="button">Editar seleção ↓</button></div>
+<div class="workspace">
+<aside class="panel">
+<h3>Propriedades do elemento</h3>
+<p id="selectionHint">Selecione um texto ou imagem na página para editar suas propriedades.</p>
+<label>Texto</label><input id="textValue" type="text" placeholder="Digite o texto">
+<label>Tamanho da fonte</label><input id="fontSize" type="number" min="6" max="96" value="18">
+<label>Cor do texto</label><input id="fontColor" type="color" value="#111111" style="width:100%;height:36px">
+<label>Largura (px)</label><input id="itemWidth" type="number" min="10" value="220">
+<label>Altura (px)</label><input id="itemHeight" type="number" min="10" value="42">
+<div style="display:flex;gap:8px;margin-top:12px"><button id="apply" disabled>Aplicar</button><button id="remove" class="secondary" disabled>Remover</button></div>
+<hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
+<h3>Páginas do documento</h3><div id="pages" class="pages"></div>
+<div class="status" id="status">Nenhum PDF carregado.</div>
+</aside>
+<section class="viewer">
+<div class="stagehead"><b>Visualização do documento</b><span id="pageInfo">Abra um PDF para começar</span></div>
+<div class="canvaswrap"><div class="empty" id="empty">📄<br><b>Seu documento aparecerá aqui</b><br>Toque em “Abrir PDF” e selecione um arquivo.</div><div id="pageStage"><canvas id="pdfCanvas"></canvas><div id="textLayer" class="textLayer"></div><div id="overlay"></div></div></div>
+</section>
+</div>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+let pdfDoc=null, originalBytes=null, page=1, selected=null, elements={}, scale=1, pageDims={}, selectedPdfText=null;
+let zoom=1;
+const $=id=>document.getElementById(id);
+const setStatus=s=>$('status').textContent=s;
+const key=()=>String(page);
+function applyZoom(){
+ const stage=$('pageStage'); if(!pdfDoc)return;
+ stage.style.zoom=String(zoom);
+ $('zoomLabel').textContent=Math.round(zoom*100)+'%';$('zoomRange').value=Math.round(zoom*100);
+}
+$('zoomRange').addEventListener('input',e=>{zoom=Number(e.target.value)/100;applyZoom()});
+$('fitWidth').onclick=()=>{if(!pdfDoc)return;const wrap=document.querySelector('.canvaswrap');const w=pageDims[page]?.width||800;zoom=Math.max(.5,Math.min(1.8,(wrap.clientWidth-20)/w));applyZoom()};
+$('mobileEdit').onclick=()=>document.querySelector('.panel').scrollIntoView({behavior:'smooth',block:'start'});
+if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.warn));
+function enable(v){['prev','next','addText','cover','deletePage','export'].forEach(id=>$(id).disabled=!v);$('imageLabel').style.opacity=v?1:.45;$('imageLabel').style.pointerEvents=v?'auto':'none'}
+async function openPDF(file){
+ try{originalBytes=await file.arrayBuffer();pdfDoc=await pdfjsLib.getDocument({data:originalBytes.slice(0)}).promise;page=1;elements={};pageDims={};selected=null;selectedPdfText=null;$('empty').style.display='none';$('pageStage').style.display='block';enable(true);await renderPage();if(innerWidth<=760)$('fitWidth').click();setStatus(file.name+' carregado com '+pdfDoc.numPages+' página(s).')}
+ catch(e){alert('Não foi possível abrir o PDF. Verifique se o arquivo não está protegido.');console.error(e)}
+}
+async function renderPage(){
+ const p=await pdfDoc.getPage(page), viewport=p.getViewport({scale:1.35});scale=1.35;
+ const canvas=$('pdfCanvas'),ctx=canvas.getContext('2d');canvas.width=viewport.width;canvas.height=viewport.height;canvas.style.width=viewport.width+'px';canvas.style.height=viewport.height+'px';
+ $('pageStage').style.width=viewport.width+'px';$('pageStage').style.height=viewport.height+'px';$('overlay').style.width=viewport.width+'px';$('overlay').style.height=viewport.height+'px';
+ pageDims[page]={width:viewport.width,height:viewport.height,scale:scale,baseWidth:p.view[2]-p.view[0],baseHeight:p.view[3]-p.view[1],viewport:viewport,view:p.view.slice(),rotation:p.rotate||0};
+ await p.render({canvasContext:ctx,viewport}).promise;
+ await renderSelectableText(p, viewport);
+ $('pageInfo').textContent='Página '+page+' de '+pdfDoc.numPages;$('prev').disabled=page===1;$('next').disabled=page===pdfDoc.numPages;
+ drawElements();drawPageButtons();applyZoom();
+}
+async function renderSelectableText(p, viewport){
+ const layer=$('textLayer');layer.innerHTML='';layer.style.width=viewport.width+'px';layer.style.height=viewport.height+'px';
+ const content=await p.getTextContent();
+ content.items.forEach(item=>{
+   if(!item.str || !item.str.trim()) return;
+   const tx=pdfjsLib.Util.transform(viewport.transform,item.transform);
+   const angle=Math.atan2(tx[1],tx[0]);
+   const fontHeight=Math.hypot(tx[2],tx[3]);
+   const textStyle=content.styles[item.fontName]||{};
+   const ascent=Number.isFinite(textStyle.ascent)?textStyle.ascent:0.82;
+   const descent=Number.isFinite(textStyle.descent)?Math.abs(textStyle.descent):0.22;
+   const textH=Math.max(fontHeight*(ascent+descent),fontHeight);
+   const span=document.createElement('span');span.className='pdfText';
+   span.textContent=item.str;span.style.left=tx[4]+'px';span.style.top=(tx[5]-fontHeight*ascent)+'px';
+   span.style.fontSize=fontHeight+'px';span.style.fontFamily='Arial,Helvetica,sans-serif';
+   span.style.transform='rotate('+angle+'rad)';
+   const width=Math.max(item.width*viewport.scale, Math.max(5,item.str.length*fontHeight*.3));
+   span.style.width=width+'px';span.style.height=textH+'px';
+   span.title='Clique para editar: '+item.str;
+   span.addEventListener('click',ev=>{
+     ev.stopPropagation();
+     if(selectedPdfText) selectedPdfText.classList.remove('chosen');
+     selectedPdfText=span;span.classList.add('chosen');
+     const rect=span.getBoundingClientRect(), stage=$('pageStage').getBoundingClientRect();
+     // Guarda a substituição na lista da página para que ela seja exportada.
+     if(!span._replacement){
+       span._replacement={type:'replace',text:item.str,original:item.str,x:tx[4],y:tx[5]-fontHeight*ascent,w:Math.max(width+2,12),h:Math.max(textH+2,14),size:fontHeight,color:'#111111',fontWeight:(/bold|black|heavy/i.test(textStyle.fontFamily||'')?700:600)};
+       if(!elements[key()]) elements[key()]=[];
+       elements[key()].push(span._replacement);
+     }
+     selected=span._replacement;
+     drawElements();
+     loadProps();
+     $('selectionHint').textContent='Texto original selecionado. Edite o conteúdo e clique em Aplicar.';
+   });
+   layer.appendChild(span);
+ });
+}
+function drawElements(){
+ $('overlay').innerHTML='';(elements[key()]||[]).forEach((el,i)=>{
+ const d=document.createElement('div');d.className='item '+el.type+(selected===el?' selected':'');d.style.left=el.x+'px';d.style.top=el.y+'px';d.style.width=el.w+'px';d.style.height=el.h+'px';
+ if(el.type==='text' || el.type==='replace'){
+   d.textContent=el.text;d.style.fontSize=el.size+'px';d.style.color=el.color;
+   if(el.type==='replace'){
+     // Apaga visualmente o texto antigo antes de mostrar a substituição.
+     d.style.backgroundColor='#ffffff';
+     d.style.color=el.color||'#111111';
+     d.style.fontWeight=el.fontWeight||600;
+     d.style.width=el.w+'px';d.style.height=el.h+'px';
+     d.style.transform='none';
+     d.style.boxSizing='border-box';
+     // Ajusta a fonte na pré-visualização para nunca invadir o campo vizinho.
+     let fitted=el.size;const available=Math.max(4,el.w-5);
+     const measure=document.createElement('canvas').getContext('2d');
+     while(fitted>4){measure.font=(el.fontWeight||600)+' '+fitted+'px Arial';if(measure.measureText(el.text||'').width<=available)break;fitted-=0.25;}
+     d.style.fontSize=Math.max(4,fitted)+'px';
+   }
+ }
+ if(el.type==='cover')d.title='Área coberta';
+ if(el.type==='image'){const im=document.createElement('img');im.src=el.src;d.appendChild(im)}
+ d.addEventListener('pointerdown',e=>{
+  if(e.pointerType==='mouse'&&e.button!==0)return;
+  e.preventDefault();e.stopPropagation();selected=el;
+  document.querySelectorAll('#overlay .item').forEach(node=>node.classList.remove('selected'));
+  d.classList.add('selected');loadProps();
+  let sx=e.clientX,sy=e.clientY,ox=el.x,oy=el.y;
+  d.setPointerCapture(e.pointerId);
+  const move=ev=>{if(ev.pointerId!==e.pointerId)return;el.x=ox+(ev.clientX-sx)/zoom;el.y=oy+(ev.clientY-sy)/zoom;d.style.left=el.x+'px';d.style.top=el.y+'px'};
+  const up=()=>{d.removeEventListener('pointermove',move);d.removeEventListener('pointerup',up);d.removeEventListener('pointercancel',up)};
+  d.addEventListener('pointermove',move);d.addEventListener('pointerup',up);d.addEventListener('pointercancel',up);
+});
+ $('overlay').appendChild(d);
+ });
+}
+function drawPageButtons(){ $('pages').innerHTML='';for(let i=1;i<=pdfDoc.numPages;i++){let b=document.createElement('button');b.className='thumb'+(i===page?' active':'');b.textContent=i;b.onclick=async()=>{page=i;selected=null;selectedPdfText=null;await renderPage()};$('pages').appendChild(b)}}
+function add(el){if(!elements[key()])elements[key()]=[];elements[key()].push(el);selected=el;drawElements();loadProps()}
+function loadProps(){let ok=!!selected;$('apply').disabled=!ok;$('remove').disabled=!ok;$('selectionHint').textContent=ok?'Elemento selecionado. Arraste-o para posicionar.':'Selecione um elemento.';$('textValue').value=selected?.text||'';$('fontSize').value=selected?.size||18;$('fontColor').value=selected?.color||'#111111';$('itemWidth').value=selected?.w||220;$('itemHeight').value=selected?.h||42}
+$('pdfInput').onchange=e=>e.target.files[0]&&openPDF(e.target.files[0]);
+$('prev').onclick=async()=>{if(page>1){page--;selected=null;selectedPdfText=null;await renderPage();loadProps()}};
+$('next').onclick=async()=>{if(page<pdfDoc.numPages){page++;selected=null;selectedPdfText=null;await renderPage();loadProps()}};
+$('addText').onclick=()=>add({type:'text',x:40,y:40,w:240,h:45,text:'Novo texto',size:18,color:'#111111'});
+$('cover').onclick=()=>add({type:'cover',x:40,y:40,w:220,h:35});
+$('imageInput').onchange=e=>{let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>add({type:'image',x:40,y:40,w:180,h:120,src:r.result});r.readAsDataURL(f);e.target.value=''};
+$('apply').onclick=()=>{if(!selected)return;if(selected.type==='text' || selected.type==='replace')selected.text=$('textValue').value;selected.size=Number($('fontSize').value)||18;selected.color=$('fontColor').value;selected.w=Math.max(10,Number($('itemWidth').value)||220);selected.h=Math.max(10,Number($('itemHeight').value)||42);drawElements();setStatus('Alterações aplicadas. Clique em “Gerar PDF” para salvar no arquivo.');};
+$('remove').onclick=()=>{if(!selected)return;elements[key()]=elements[key()].filter(x=>x!==selected);selected=null;drawElements();loadProps()};
+$('deletePage').onclick=async()=>{if(pdfDoc.numPages===1){alert('O PDF precisa ter pelo menos uma página.');return}if(!confirm('Excluir a página '+page+'?'))return;elements['deleted_'+page]=true;setStatus('Página marcada para exclusão.');alert('A exclusão será aplicada ao gerar o PDF.');};
+$('export').onclick=async()=>{
+ try{const {PDFDocument, rgb, StandardFonts}=PDFLib;const src=await PDFDocument.load(originalBytes);const out=await PDFDocument.create();const indices=[];for(let i=0;i<src.getPageCount();i++)if(!elements['deleted_'+(i+1)])indices.push(i);if(!indices.length)throw Error('Não há páginas para exportar.');
+ const copied=await out.copyPages(src,indices);copied.forEach(p=>out.addPage(p));
+ const regularFont=await out.embedFont(StandardFonts.Helvetica);const boldFont=await out.embedFont(StandardFonts.HelveticaBold);
+ for(let oi=0;oi<indices.length;oi++){
+   const oldPage=indices[oi]+1,els=elements[String(oldPage)]||[],pg=out.getPage(oi),sz=pg.getSize(),dim=pageDims[oldPage],vp=dim&&dim.viewport;
+   for(const el of els){
+     let x,y,w,h,fontScale;
+     if(vp && typeof vp.convertToPdfPoint==='function'){
+       // Converte os quatro limites da área diretamente pelo viewport do PDF.js.
+       // Isso respeita CropBox, origem da página e rotação do documento.
+       const p1=vp.convertToPdfPoint(el.x,el.y);
+       const p2=vp.convertToPdfPoint(el.x+el.w,el.y+el.h);
+       x=Math.min(p1[0],p2[0]);y=Math.min(p1[1],p2[1]);
+       w=Math.abs(p2[0]-p1[0]);h=Math.abs(p2[1]-p1[1]);
+       fontScale=1/(vp.scale||1);
+     }else{
+       const sx=sz.width/(dim?.width||sz.width),sy=sz.height/(dim?.height||sz.height);
+       x=el.x*sx;y=sz.height-(el.y+el.h)*sy;w=el.w*sx;h=el.h*sy;fontScale=sx;
+     }
+     if(el.type==='cover')pg.drawRectangle({x,y,width:w,height:h,color:rgb(1,1,1)});
+     if(el.type==='replace'){
+       // Cobertura justa: evita apagar textos dos campos vizinhos.
+       const pad=0.15;
+       pg.drawRectangle({x:x-pad,y:y-pad,width:w+pad*2,height:h+pad*2,color:rgb(1,1,1)});
+     }
+     if(el.type==='text' || el.type==='replace'){
+       const c=el.color.match(/[a-f\d]{2}/gi).map(v=>parseInt(v,16)/255);
+       const content=el.text||'';
+       const font=(el.type==='replace' && (el.fontWeight||600)>=600)?boldFont:regularFont;
+       let drawSize=el.size*fontScale;
+       if(el.type==='replace' && content){
+         // Mantém o texto dentro da caixa original, sem alcançar a coluna seguinte.
+         const availableWidth=Math.max(1,w-1);
+         const measured=font.widthOfTextAtSize(content,drawSize);
+         if(measured>availableWidth)drawSize=Math.max(3,drawSize*(availableWidth/measured)*0.97);
+         const textHeight=font.heightAtSize(drawSize);
+         const baseline=y+Math.max(0,(h-textHeight)/2);
+         pg.drawText(content,{x:x+0.5,y:baseline,size:drawSize,font,color:rgb(c[0],c[1],c[2]),lineHeight:drawSize});
+       }else{
+         pg.drawText(content,{x,y:y+Math.max(2,h*.18),size:drawSize,font,maxWidth:w,color:rgb(c[0],c[1],c[2])});
+       }
+     }
+     if(el.type==='image'){
+       let data=el.src.split(',')[1],bytes=Uint8Array.from(atob(data),c=>c.charCodeAt(0));
+       let img=el.src.startsWith('data:image/png')?await out.embedPng(bytes):await out.embedJpg(bytes);
+       pg.drawImage(img,{x,y,width:w,height:h});
+     }
+   }
+ }
+ const bytes=await out.save(),blob=new Blob([bytes],{type:'application/pdf'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='MV-Calhas-Documento-Editado.pdf';a.click();URL.revokeObjectURL(url);setStatus('PDF editado gerado com sucesso.');
+ }catch(e){alert('Erro ao gerar PDF: '+e.message);console.error(e)}
+};
+</script>
+</body></html>
